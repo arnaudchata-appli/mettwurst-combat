@@ -1,5 +1,5 @@
 // Service worker : met tout le jeu en cache pour jouer hors ligne
-const CACHE = 'mettwurst-combat-v1.3.0';
+const CACHE = 'mettwurst-combat-v1.3.1';
 const ASSETS = [
   './',
   'index.html',
@@ -36,10 +36,13 @@ self.addEventListener('activate', (e) => {
 // Réseau d'abord (pour recevoir les mises à jour), cache en secours hors ligne
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const sameOrigin = new URL(e.request.url).origin === location.origin;
+  // 'no-cache' : on revalide toujours auprès du serveur (sinon le cache HTTP
+  // de 10 minutes de GitHub Pages servait d'anciennes versions du jeu)
   e.respondWith(
-    fetch(e.request)
+    (sameOrigin ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request))
       .then((res) => {
-        if (res && res.ok && new URL(e.request.url).origin === location.origin) {
+        if (res && res.ok && sameOrigin) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));
         }

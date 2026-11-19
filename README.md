@@ -92,4 +92,4 @@ Mode démo, ordi contre ordi : `index.html#demo=mett,boeuf,0`.
 
 ### Publier une mise à jour
 
-Pour que les joueurs reçoivent une nouvelle version, il faut changer `CACHE` dans `sw.js`, puis pousser sur `main`.
+Pour que les joueurs reçoivent une nouvelle version, il faut changer le numéro de version à trois endroits : `VERSION` dans `js/util.js`, `CACHE` dans `sw.js`, et les `?v=` dans `index.html`. Ensuite, pousser sur `main`. Le jeu se recharge tout seul quand une nouvelle version est disponible.

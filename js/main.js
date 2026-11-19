@@ -597,7 +597,8 @@ const Flow = {
   },
   nextArcade() {
     const a = this.arcade, opp = a.ladder[a.idx];
-    const normal = STAGES.filter((s) => !s.inferno);
+    // l'autoroute en premier (arène par défaut), puis les autres
+    const normal = STAGES.filter((s) => !s.inferno).sort((a, b) => (b.id === 'autoroute') - (a.id === 'autoroute'));
     const stage = opp.boss ? STAGES.find((s) => s.inferno) : normal[a.idx % normal.length];
     const lvl = Settings.data.difficulty + (a.idx / Math.max(1, a.ladder.length - 1)) * 0.8 + (opp.boss ? 0.3 : 0);
     const sub = opp.boss ? 'COMBAT FINAL  •  ' + stage.name : `COMBAT ${a.idx + 1} / ${a.ladder.length}  •  ${stage.name}`;
@@ -712,5 +713,16 @@ if (ff) for (let i = 0; i < +ff[1]; i++) { scene.update(); Input.endFrame(); }
 requestAnimationFrame(frame);
 
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  // Quand une nouvelle version du jeu est installée, on recharge une fois
+  // la page pour l'utiliser immédiatement.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloaded) { reloaded = true; location.reload(); }
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then((reg) => reg.update())
+      .catch(() => {});
+  });
 }
