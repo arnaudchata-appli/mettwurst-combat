@@ -13,7 +13,7 @@ const Input = (() => {
   const L = { dpad: { x: 0, y: 0, r: 90 }, buttons: [], pause: { x: 0, y: 0, r: 22 } };
 
   function blank() {
-    return { left: false, right: false, up: false, down: false, punch: false, kick: false, block: false, special: false };
+    return { left: false, right: false, up: false, down: false, punch: false, kick: false, block: false, special: false, yogurt: false };
   }
 
   const KEY_ACTIONS = {
@@ -70,6 +70,7 @@ const Input = (() => {
       { id: 'kick', label: 'PIED', x: bx - br * 1.05, y: by - br * 2.2, r: br, color: '#fb8c00' },
       { id: 'block', label: 'GARDE', x: bx - br * 5.4, y: by - br * 1.0, r: br * 0.88, color: '#1e88e5' },
       { id: 'special', label: 'SPÉCIAL', x: bx - br * 2.6, y: by - br * 3.6, r: br * 0.95, color: '#8e24aa' },
+      { id: 'yogurt', label: 'YAOURT', x: bx - br * 4.6, y: by - br * 3.2, r: br * 0.88, color: '#90a4ae' },
     ];
     L.pause = { x: V.w / 2, y: V.oy + 102, r: 20 };
   }
@@ -104,7 +105,7 @@ const Input = (() => {
       const ax = g.axes[0] || 0, ay = g.axes[1] || 0;
       const s = {
         left: b(14) || ax < -0.5, right: b(15) || ax > 0.5, up: b(12) || ay < -0.6, down: b(13) || ay > 0.6,
-        punch: b(2), kick: b(0), special: b(1) || b(3), block: b(4) || b(5) || b(6) || b(7),
+        punch: b(2), kick: b(0), special: b(1), yogurt: b(3), block: b(4) || b(5) || b(6) || b(7),
         start: b(9), select: b(8),
       };
       const o = gp[n];
@@ -144,15 +145,17 @@ const Input = (() => {
       o.up = any('ArrowUp', 'KeyW', 'Space'); o.down = any('ArrowDown', 'KeyS');
       o.punch = any('KeyJ', 'KeyF'); o.kick = any('KeyK', 'KeyG');
       o.block = any('KeyL', 'KeyH', 'ShiftLeft', 'ShiftRight'); o.special = any('KeyI', 'KeyT', 'KeyU');
+      o.yogurt = any('KeyO', 'KeyY');
       merge(o, pad); merge(o, gp[0]); merge(o, gp[1]);
     } else if (slot === 0) {
       o.left = any('KeyA'); o.right = any('KeyD'); o.up = any('KeyW'); o.down = any('KeyS');
-      o.punch = any('KeyF'); o.kick = any('KeyG'); o.block = any('KeyH'); o.special = any('KeyT');
+      o.punch = any('KeyF'); o.kick = any('KeyG'); o.block = any('KeyH'); o.special = any('KeyT'); o.yogurt = any('KeyY');
       merge(o, pad); merge(o, gp[0]);
     } else {
       o.left = any('ArrowLeft'); o.right = any('ArrowRight'); o.up = any('ArrowUp'); o.down = any('ArrowDown');
       o.punch = any('Numpad1', 'KeyB'); o.kick = any('Numpad2', 'KeyN');
       o.block = any('Numpad3', 'KeyM'); o.special = any('Numpad0', 'Numpad5', 'Comma');
+      o.yogurt = any('Numpad4', 'Period');
       merge(o, gp[1]);
     }
     return o;

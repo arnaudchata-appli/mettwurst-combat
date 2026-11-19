@@ -8,7 +8,7 @@ const GROUND = 468;
 const STEP = 1 / 60;
 const GRAVITY = 2600;
 const FREE = new Set(['idle', 'walk', 'crouch', 'block']);
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rand = (a, b) => a + Math.random() * (b - a);

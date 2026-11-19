@@ -465,9 +465,9 @@ class HowToScene {
       ['POING / PIED  attaquer'], ['GARDE  bloquer (accroupi contre les balayettes)'],
       ['', ''],
       ['CLAVIER (1 joueur)', 'h'],
-      ['Flèches ou ZQSD/WASD + J poing, K pied, L garde, I spécial'],
+      ['Flèches ou ZQSD + J poing, K pied, L garde, I spécial, O yaourt'],
       ['CLAVIER (2 joueurs)', 'h'],
-      ['J1 : ZQSD + F G H T    J2 : flèches + B N M ,'],
+      ['J1 : ZQSD + F G H T Y    J2 : flèches + B N M , .'],
       ['Manettes Bluetooth / USB reconnues'],
     ];
     const right = [
@@ -475,6 +475,7 @@ class HowToScene {
       ['↓ + POING  uppercut (fait décoller)'], ['↓ + PIED  balayette (attaque basse)'],
       ['PIED en l\'air  coup de pied sauté'],
       ['SPÉCIAL  coup secret de ton grilladin'],
+      ['YAOURT  écrase un pot : l\'adversaire devient collant (3 pots/round)'],
       ['ENCHAÎNE  Poing → Poing → Pied → Spécial'],
       ['', ''],
       ['JAUGE DE BRAISE', 'h'],
@@ -610,6 +611,15 @@ if (demo) {
   const p1 = rosterById(demo[1]) || choice(ROSTER), p2 = rosterById(demo[2]) || choice(ROSTER);
   go(new FightScene({ p1, p2, mode: 'cpu', ai: [new AI(2), new AI(2)], stage: STAGES[+(demo[3] || 0) % STAGES.length], onEnd: () => go(new TitleScene()) }));
 } else if (!scene) go(new TitleScene());
+// Avance rapide pour le débogage : #demo=...&ff=1200
+if (/yog/.test(location.hash) && scene.fight) {
+  const F = scene.fight.f;
+  F[0].x = 260; F[1].x = 760;
+  F[0].startMove(F[0].def.moves.yogurt, scene.fight);
+  F[1].sticky = 300;
+}
+const ff = /ff=(\d+)/.exec(location.hash || '');
+if (ff) for (let i = 0; i < +ff[1]; i++) { scene.update(); Input.endFrame(); }
 requestAnimationFrame(frame);
 
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {

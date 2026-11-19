@@ -80,6 +80,11 @@ const Sound = (() => {
     whoosh() { noise(0.14, { freq: 600, to: 2400, gain: 0.1, q: 2, attack: 0.03 }); },
     jump() { tone(220, 0.12, { type: 'triangle', to: 440, gain: 0.1 }); },
     land() { tone(80, 0.08, { type: 'sine', to: 50, gain: 0.2 }); },
+    squish() {
+      noise(0.25, { filter: 'lowpass', freq: 1400, to: 180, gain: 0.55, q: 4, attack: 0.005 });
+      tone(320, 0.18, { type: 'sine', to: 90, gain: 0.35 });
+      noise(0.12, { freq: 2500, to: 600, gain: 0.15, q: 6 }, sfxBus, now() + 0.06);
+    },
     sizzle() { noise(0.7, { filter: 'highpass', freq: 4500, gain: 0.12, attack: 0.04 }); },
     fire() {
       noise(0.55, { freq: 300, to: 1500, gain: 0.4, q: 0.6, attack: 0.03 });

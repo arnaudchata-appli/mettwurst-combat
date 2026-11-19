@@ -21,7 +21,7 @@ function buildMoves(c) {
     punch: mv({
       name: 'punch', startup: 4, active: 3, recovery: 8, dmg: 36 * p,
       hb: { x: fx, y: sh - 22, w: 58 * r + 12, h: 36 }, kb: 150, hitstun: 17, blockstun: 10,
-      sfx: 'punch', cancel: ['punch', 'kick', 'uppercut', 'sweep', 'special', 'super'],
+      sfx: 'punch', cancel: ['punch', 'kick', 'uppercut', 'sweep', 'special', 'super', 'yogurt'],
     }),
     kick: mv({
       name: 'kick', startup: 7, active: 4, recovery: 13, dmg: 52 * p,
@@ -49,6 +49,12 @@ function buildMoves(c) {
       multi: true, hitEvery: 5, maxHits: 6, finalLaunch: -900, dashSpeed: 780, sfx: 'heavy',
     }),
   };
+  // Pot de yaourt écrasé : commun à tous, 3 pots par round
+  m.yogurt = mv({
+    name: 'yogurt', type: 'yogurt', startup: 16, active: 1, recovery: 16, dmg: 30,
+    kb: 120, hitstun: 28, blockstun: 12, sticky: 300, sfx: 'squish',
+    proj: { kind: 'yogurt', speed: 560, w: 52, h: 40, y: sh - 16 },
+  });
   m.special = mv(Object.assign({ name: 'special', sfx: 'throw' }, c.special(c, top, fx, p)));
   return m;
 }

@@ -98,6 +98,7 @@ class AI {
 
     if (me.meter >= 100 && dist < 320 && r < 0.35 + this.lv * 0.1) return press({ special: true });
     if (dist > kReach + 6) {
+      if (me.yogurts > 0 && opp.sticky <= 0 && r < 0.08 + 0.03 * this.lv) return press({ yogurt: true }, 14);
       if (sp.type === 'projectile' && !g.hasProjectile(me) && r < 0.18 + 0.08 * this.lv) return press({ special: true }, 14);
       if (sp.type === 'dash' && dist < 360 && r < 0.14) return press({ special: true });
       if (sp.type === 'flame' && dist < 210 && r < 0.3) return press({ special: true });

@@ -35,15 +35,17 @@ Pour débloquer Maître Charbon, il faut finir le mode Arcade.
 | Pied | PIED | K | A / ✕ |
 | Garde | GARDE | L | Gâchettes |
 | Spécial | SPÉCIAL | I | B / ○ |
+| Pot de yaourt | YAOURT | O | Y / △ |
 | Pause | ⏸ | Échap / P | Start |
 
-En 2 joueurs au clavier, J1 joue avec ZQSD + F G H T et J2 avec les flèches + B N M , (ou le pavé numérique 1 2 3 0).
+En 2 joueurs au clavier, J1 joue avec ZQSD + F G H T Y et J2 avec les flèches + B N M , . (ou le pavé numérique 1 2 3 0 4).
 
 **Coups :**
 - ↓ + Poing : uppercut, qui fait décoller l'adversaire.
 - ↓ + Pied : balayette. C'est une attaque basse : il faut se garder accroupi pour la bloquer.
 - Pied en l'air : coup de pied sauté.
 - Enchaînements : Poing → Poing → Pied → Spécial.
+- **Pot de yaourt** : ton grilladin écrase un pot et projette du yaourt. Si l'adversaire est touché, il devient collant et ralentit pendant 5 secondes. Tu as 3 pots par round.
 - **Jauge de Braise** : elle se remplit en frappant et en encaissant. Une fois pleine, la touche Spécial lance le **SUPER**.
 - **Grillade finale** : quand l'annonceur crie « GRILLE-LE ! » à la fin du match, fais ↓ + Spécial.
 

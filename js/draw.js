@@ -437,6 +437,9 @@ function computePose(f) {
         case 'sweep':
           crouchPose(P, L); P.legF = [lerp(24, 40 + 86 * r, e), L * 0.5 - 4]; P.lean = -0.12; P.armF = [10, 10]; P.armB = [-10, 12];
           break;
+        case 'yogurt':
+          P.armF = [lerp(14, 52, e), lerp(-4, -22, e)]; P.armB = [lerp(0, 46, e), lerp(-12, -20, e)]; P.lean = 0.1 * e;
+          break;
         case 'airKick':
           P.legF = [lerp(14, 30 + 64 * r, e), lerp(L * 0.55, 14, e)]; P.legB = [-10, L * 0.6]; P.lean = -0.15; P.armF = [14, -30];
           break;
@@ -490,7 +493,7 @@ function drawShadow(ctx, f, scale = 1) {
 }
 
 function drawFighter(ctx, f, scale = 1) {
-  const c = f.def, P = computePose(f), col = c.colors;
+  const c = f.def, P = computePose(f), col = c.colors, m = f.move;
   ctx.save();
   ctx.translate(f.x, f.y);
   ctx.scale(scale * f.facing, scale);
@@ -517,11 +520,16 @@ function drawFighter(ctx, f, scale = 1) {
   ctx.save();
   ctx.scale(bw / c.bodyW, bh / c.bodyH);
   PAINTERS[c.painter](ctx, c, c.bodyW, c.bodyH, f);
+  if (f.sticky > 0) drawYogurtStains(ctx, c.bodyW, c.bodyH, Math.min(1, f.sticky / 40), f.anim);
   ctx.restore();
   const fy = -bh * c.faceY, fx = bw * 0.1;
   if (ACCESSORIES[c.accessory] && c.accessory !== 'brow') ACCESSORIES[c.accessory](ctx, c, bw, bh, fx, fy, f);
   drawFace(ctx, c, fx, fy, P.expr, P.mouth);
   if (c.accessory === 'brow' && P.expr !== 'win' && P.expr !== 'dizzy') ACCESSORIES.brow(ctx, c, bw, bh, fx, fy, f);
+  if (f.state === 'attack' && m && m.name === 'yogurt' && f.mf <= m.startup + 3) {
+    const crush = clamp((f.mf - m.startup * 0.45) / (m.startup * 0.55), 0, 1);
+    drawYogurtPot(ctx, shF + P.armF[0] + 4, shY + P.armF[1] + 2, 0.9, crush);
+  }
   drawArm(ctx, shF, shY, P.armF, col, false);
   if (f.state === 'dizzy') {
     for (let i = 0; i < 3; i++) {
@@ -530,6 +538,24 @@ function drawFighter(ctx, f, scale = 1) {
     }
   }
   ctx.restore();
+  ctx.restore();
+}
+
+function drawYogurtStains(ctx, w, h, alpha, t) {
+  const R = seeded(404);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#fffdf4';
+  ctx.strokeStyle = 'rgba(160,140,110,0.5)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 5; i++) {
+    const x = (R() - 0.5) * w * 0.8, y = -h * (0.2 + R() * 0.75), r = 7 + R() * 9;
+    ctx.save(); ctx.translate(x, y);
+    drawYogurtBlob(ctx, r, i * 2 + t * 0.03); ctx.fill(); ctx.stroke();
+    const drip = 6 + ((t * 0.3 + i * 7) % 14);
+    ctx.fillRect(-2, 0, 4, r * 0.6 + drip);
+    ctx.beginPath(); ctx.arc(0, r * 0.6 + drip, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
   ctx.restore();
 }
 
@@ -543,9 +569,58 @@ function drawStar(ctx, x, y, r, color) {
   ctx.closePath(); ctx.fill();
 }
 
+// Pot de yaourt (x, y = centre du pot). crush : 0 = intact, 1 = complètement écrasé
+function drawYogurtPot(ctx, x, y, s, crush) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s * (1 + crush * 0.45), s * (1 - crush * 0.6));
+  ctx.beginPath();
+  ctx.moveTo(-15, -18); ctx.lineTo(15, -18); ctx.lineTo(11, 18); ctx.lineTo(-11, 18); ctx.closePath();
+  ctx.fillStyle = '#fafafa'; ctx.fill();
+  ctx.strokeStyle = '#78909c'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#1e88e5'; ctx.fillRect(-13.5, -6, 27, 12);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+  // opercule
+  ctx.fillStyle = '#cfd8dc'; ctx.fillRect(-17, -22, 34, 5);
+  ctx.restore();
+}
+
+function drawYogurtBlob(ctx, r, t) {
+  ctx.beginPath();
+  const pts = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2, rr = r * (0.86 + 0.14 * Math.sin(a * 4 + t));
+    pts.push([Math.cos(a) * rr * 1.25, Math.sin(a) * rr]);
+  }
+  // contour lissé (courbes entre les milieux des points)
+  const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+  const m0 = mid(pts[15], pts[0]);
+  ctx.moveTo(m0[0], m0[1]);
+  for (let i = 0; i < 16; i++) {
+    const p = pts[i], q = mid(p, pts[(i + 1) % 16]);
+    ctx.quadraticCurveTo(p[0], p[1], q[0], q[1]);
+  }
+  ctx.closePath();
+}
+
 function drawProjectile(ctx, p) {
   ctx.save();
   ctx.translate(p.x, p.y);
+  if (p.kind === 'yogurt') {
+    ctx.scale(Math.sign(p.vx) || 1, 1);
+    drawYogurtBlob(ctx, 24, p.rot);
+    const g = ctx.createRadialGradient(-6, -6, 2, 0, 0, 30);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.7, '#fff8e8'); g.addColorStop(1, '#e8dcc4');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(150,130,100,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    // traînée de gouttes
+    ctx.fillStyle = '#fffdf4';
+    for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.arc(-22 - k * 11, Math.sin(p.rot + k) * 5, 7 - k * 1.6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.ellipse(-6, -8, 7, 4, -0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    return;
+  }
   if (p.kind === 'onion') {
     ctx.scale(1, 0.75 + 0.25 * Math.cos(p.rot));
     ctx.strokeStyle = '#f3e5f5'; ctx.lineWidth = 9;

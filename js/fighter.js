@@ -24,8 +24,12 @@ class Fighter {
     this.stun = 0; this.invuln = 0; this.comboCount = 0; this.juggle = 0;
     this.flash = 0; this.charred = 0; this.crouch = false;
     this.airAttackUsed = false; this.landLag = 0;
+    this.yogurts = 3; this.sticky = 0;
     this.prev = {}; this.buf = {};
   }
+
+  // vitesse réduite quand on est couvert de yaourt
+  get speedMul() { return this.sticky > 0 ? 0.55 : 1; }
 
   get onGround() { return this.y >= GROUND - 0.5; }
   get height() { return this.def.legLen + this.def.bodyH; }
@@ -47,7 +51,7 @@ class Fighter {
   }
 
   readInput(inp, frame) {
-    for (const b of ['punch', 'kick', 'block', 'special']) {
+    for (const b of ['punch', 'kick', 'block', 'special', 'yogurt']) {
       if (inp[b] && !this.prev[b]) this.buf[b] = frame;
       this.prev[b] = inp[b];
     }
@@ -82,6 +86,10 @@ class Fighter {
     else { this.prev = Object.assign({}, inp); this.buf = {}; }
     if (this.flash > 0) this.flash--;
     if (this.invuln > 0) this.invuln--;
+    if (this.sticky > 0) {
+      this.sticky--;
+      if (this.anim % 9 === 0) g.yogurtDrip(this);
+    }
     const landed = this.physics();
 
     switch (this.state) {
@@ -138,11 +146,17 @@ class Fighter {
       if (this.meter >= 100) { this.consume('special'); this.startMove(M.super, g); return; }
       if (!(M.special.type === 'projectile' && g.hasProjectile(this))) { this.consume('special'); this.startMove(M.special, g); return; }
     }
+    if (this.pressed('yogurt', fr)) {
+      this.consume('yogurt');
+      if (this.yogurts > 0) { this.startMove(M.yogurt, g); return; }
+      Sound.play('back');
+    }
     if (this.pressed('punch', fr)) { this.consume('punch'); this.startMove(inp.down ? M.uppercut : M.punch, g); return; }
     if (this.pressed('kick', fr)) { this.consume('kick'); this.startMove(inp.down ? M.sweep : M.kick, g); return; }
     const dir = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
     if (inp.up) {
-      this.state = 'jump'; this.vy = -this.def.jump; this.vx = dir * this.def.speed * 1.15;
+      this.state = 'jump'; this.vy = -this.def.jump * (this.sticky > 0 ? 0.8 : 1);
+      this.vx = dir * this.def.speed * 1.15 * this.speedMul;
       this.y -= 1; this.airAttackUsed = false; this.crouch = false;
       Sound.play('jump');
       return;
@@ -150,7 +164,7 @@ class Fighter {
     if (inp.block) { this.state = 'block'; this.crouch = !!inp.down; this.vx = 0; return; }
     if (inp.down) { this.state = 'crouch'; this.crouch = true; this.vx = 0; return; }
     this.crouch = false;
-    if (dir) { this.state = 'walk'; this.vx = dir * this.def.speed * (dir === this.facing ? 1 : 0.72); }
+    if (dir) { this.state = 'walk'; this.vx = dir * this.def.speed * this.speedMul * (dir === this.facing ? 1 : 0.72); }
     else { this.state = 'idle'; this.vx = 0; }
   }
 
@@ -161,6 +175,7 @@ class Fighter {
     if (!m.air) this.vx = 0;
     this.crouch = m.name === 'sweep';
     if (m.name === 'super') { this.meter = 0; g.onSuper(this); }
+    else if (m.name === 'yogurt') this.yogurts--;
     else if (m.name === 'special') g.onSpecial(this);
     else Sound.play('whoosh');
   }
@@ -175,6 +190,7 @@ class Fighter {
       if (this.meter >= 100 && g.phase === 'fight') { if (tryMove('special', M.super)) return true; }
       else if (!(M.special.type === 'projectile' && g.hasProjectile(this))) { if (tryMove('special', M.special)) return true; }
     }
+    if (this.yogurts > 0 && tryMove('yogurt', M.yogurt)) return true;
     if (tryMove('punch', inp.down ? M.uppercut : M.punch)) return true;
     if (tryMove('kick', inp.down ? M.sweep : M.kick)) return true;
     return false;
@@ -193,7 +209,7 @@ class Fighter {
       if (this.mf === a0 + 1) Sound.play(m.type === 'super' ? 'fire' : 'whoosh');
     } else if (!m.air && m.type !== 'rising') this.vx = 0;
 
-    if (m.type === 'projectile' && this.mf === a0) g.spawnProjectile(this, m);
+    if ((m.type === 'projectile' || m.type === 'yogurt') && this.mf === a0) g.spawnProjectile(this, m);
     if (m.type === 'rising' && this.mf === a0) {
       this.vy = -m.rise; this.vx = this.facing * m.riseVx; this.y -= 1;
       Sound.play('whoosh');

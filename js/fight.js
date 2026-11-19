@@ -281,7 +281,12 @@ class Fight {
     let launch = m.launch;
     if (!proj && m.multi && m.finalLaunch && A.hits >= m.maxHits) launch = m.finalLaunch;
     D.takeHit(dir, m, dmg, launch);
-    if (D.comboCount >= 2) this.combo[A.side] = { n: D.comboCount, t: 0 };
+    if (m.sticky) {
+      D.sticky = m.sticky;
+      this.burst(cx, cy, '#fffdf4', 22);
+      Sound.play('squish');
+      this.combo[A.side] = { n: 0, t: 20, label: 'SPLASH ! TOUT COLLANT !' };
+    } else if (D.comboCount >= 2) this.combo[A.side] = { n: D.comboCount, t: 0 };
     this.burst(cx, cy, D.def.colors.body, 6 + Math.round(dmg / 8));
     this.sparks(cx, cy, '#fff8e1', 5 + Math.round(dmg / 15));
     this.hitstop = dmg >= 80 ? 10 : dmg >= 50 ? 7 : 5;
@@ -301,14 +306,31 @@ class Fight {
       owner: f, kind: p.kind, m, x: f.x + f.facing * (f.def.bodyW * 0.5 + 12), y: f.y + p.y,
       vx: f.facing * p.speed, w: p.w, h: p.h, life: 220, rot: 0, dead: false,
     });
-    Sound.play('throw');
+    if (p.kind === 'yogurt') {
+      Sound.play('squish');
+      const hx = f.x + f.facing * (f.def.bodyW * 0.32 + 50), hy = f.y + p.y;
+      for (let i = 0; i < 14; i++) {
+        const a = rand(-Math.PI, 0), s = rand(120, 380);
+        this.addP({ type: 'drop', x: hx, y: hy, vx: Math.cos(a) * s + f.facing * 120, vy: Math.sin(a) * s, g: 1400, life: randi(18, 34), size: rand(2.5, 5.5), color: i % 4 ? '#fffdf4' : '#f8bbd0' });
+      }
+      this.combo[f.side] = { n: 0, t: 30, label: 'POT DE YAOURT !' };
+    } else Sound.play('throw');
   }
-  hasProjectile(f) { return this.projectiles.some((p) => p.owner === f && !p.dead); }
+  hasProjectile(f) { return this.projectiles.some((p) => p.owner === f && !p.dead && p.kind !== 'yogurt'); }
+  yogurtDrip(f) {
+    this.addP({
+      type: 'drop', x: f.x + rand(-f.def.bodyW * 0.4, f.def.bodyW * 0.4), y: f.y - rand(f.def.legLen, f.height * 0.9),
+      vx: 0, vy: 30, g: 900, life: 40, size: rand(2.5, 4), color: '#fffdf4',
+    });
+  }
 
   updateProjectiles() {
     const P = this.projectiles;
     for (const p of P) {
       p.x += p.vx * STEP; p.rot += 0.3; p.life--;
+      if (p.kind === 'yogurt' && this.frame % 3 === 0) {
+        this.addP({ type: 'drop', x: p.x - Math.sign(p.vx) * 20, y: p.y + rand(-8, 8), vx: -p.vx * 0.15, vy: rand(-40, 40), g: 1200, life: 24, size: rand(2.5, 4.5), color: '#fffdf4' });
+      }
       if (p.kind === 'coal' && this.frame % 2 === 0) this.addP({ type: 'flame', x: p.x - Math.sign(p.vx) * 14, y: p.y + rand(-6, 6), vx: -p.vx * 0.1, vy: rand(-60, -20), life: 16, size: 14, grow: -0.5 });
       if (p.x < -80 || p.x > ARENA_W + 80 || p.life <= 0) p.dead = true;
     }
@@ -329,7 +351,7 @@ class Fight {
       const box = { x: p.x - p.w / 2, y: p.y - p.h / 2, w: p.w, h: p.h };
       if (overlap(box, D.hurtbox()) && this.resolve(p.owner, D, p.m, box, p)) {
         p.dead = true;
-        this.burst(p.x, p.y, p.kind === 'onion' ? '#f3e5f5' : p.kind === 'pepper' ? '#e53935' : '#ff9100', 10);
+        this.burst(p.x, p.y, { onion: '#f3e5f5', pepper: '#e53935', yogurt: '#fffdf4' }[p.kind] || '#ff9100', 10);
       }
     }
     this.projectiles = P.filter((p) => !p.dead);
@@ -489,6 +511,13 @@ class Fight {
       if (i === 0) ctx.fillRect(mx, my, MW * mr, 10); else ctx.fillRect(mx + MW * (1 - mr), my, MW * mr, 10);
       if (f.meter >= 100 && Math.floor(this.frame / 12) % 2) {
         UI.text(ctx, 'SUPER PRÊT !', i === 0 ? mx + MW + 10 : mx - 10, my + 5, 16, '#ffd54f', i === 0 ? 'left' : 'right');
+      }
+      // pots de yaourt restants
+      for (let k = 0; k < 3; k++) {
+        const px = i === 0 ? mx + 10 + k * 22 : mx + MW - 10 - k * 22;
+        ctx.globalAlpha = k < f.yogurts ? 1 : 0.2;
+        drawYogurtPot(ctx, px, my + 30, 0.55, 0);
+        ctx.globalAlpha = 1;
       }
       // victoires
       for (let k = 0; k < 2; k++) {
