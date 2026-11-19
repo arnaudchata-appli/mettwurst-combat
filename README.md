@@ -20,6 +20,13 @@ Le jeu tourne dans n'importe quel navigateur, sur ordinateur comme sur mobile. S
 
 Pour débloquer Maître Charbon, il faut finir le mode Arcade.
 
+## Arènes
+
+- **Le Jardin de Mamie** : au coucher du soleil, sous la guirlande guinguette.
+- **Le Grill de Minuit** : sur un toit en ville, à la nuit tombée.
+- **La Bretelle d'Autoroute** : au pied d'un échangeur, avec des voitures qui passent en continu.
+- **La Fournaise** : l'intérieur du barbecue, réservé au combat contre le boss.
+
 ## Modes de jeu
 
 - **Arcade** : affronte tous les grilladins à la suite, puis le boss dans *La Fournaise*.

@@ -511,7 +511,8 @@ const Flow = {
   },
   nextArcade() {
     const a = this.arcade, opp = a.ladder[a.idx];
-    const stage = opp.boss ? STAGES[2] : STAGES[a.idx % 2];
+    const normal = STAGES.filter((s) => !s.inferno);
+    const stage = opp.boss ? STAGES.find((s) => s.inferno) : normal[a.idx % normal.length];
     const lvl = Settings.data.difficulty + (a.idx / Math.max(1, a.ladder.length - 1)) * 0.8 + (opp.boss ? 0.3 : 0);
     const sub = opp.boss ? 'COMBAT FINAL  •  ' + stage.name : `COMBAT ${a.idx + 1} / ${a.ladder.length}  •  ${stage.name}`;
     const startFight = () => go(new FightScene({
