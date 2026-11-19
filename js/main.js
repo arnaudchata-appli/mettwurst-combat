@@ -158,7 +158,7 @@ class SelectScene {
       if (this.cursor[1] === this.cursor[0]) this.cursor[1] = (this.cursor[0] + 1) % this.list.length;
       return;
     }
-    Flow.startVersus(this.mode, this.picks[0], this.picks[1]);
+    go(new ArenaSelectScene(this.mode, this.picks[0], this.picks[1]));
   }
   back() {
     Sound.play('back');
@@ -258,6 +258,92 @@ class SelectScene {
       UI.text(c, 'Termine le mode Arcade pour débloquer un combattant secret…', View.w / 2, View.h - 74 - this.cells[0].h - 14, 13, '#ffe0b2', 'center', { sw: 3 });
       c.globalAlpha = 1;
     }
+  }
+}
+
+// ============================ CHOIX DE L'ARÈNE =============================
+class ArenaSelectScene {
+  constructor(mode, p1, p2) {
+    this.mode = mode; this.p1 = p1; this.p2 = p2; this.t = 0;
+    this.options = [...STAGES, null]; // null = hasard
+    this.cursor = Math.max(0, STAGES.findIndex((s) => s.id === 'autoroute')); // autoroute par défaut
+  }
+  enter() { Sound.startMusic('menu'); }
+  layout() {
+    const n = this.options.length;
+    const w = Math.min(200, (View.w - 40) / n - 12), h = w * 0.5625;
+    const total = n * (w + 12) - 12;
+    this.cards = this.options.map((s, i) => ({ x: View.w / 2 - total / 2 + i * (w + 12), y: View.h * 0.42, w, h }));
+    this.okBtn = { x: View.w / 2 - 120, y: View.h - 66, w: 240, h: 50, label: 'COMBATTRE !' };
+    this.backBtn = { x: 14, y: 12, w: 130, h: 42, label: 'RETOUR', size: 22 };
+  }
+  get stage() { return this.options[this.cursor]; }
+  confirm() {
+    Sound.play('confirm');
+    Flow.startVersus(this.mode, this.p1, this.p2, this.stage);
+  }
+  back() {
+    Sound.play('back');
+    const s = new SelectScene(this.mode);
+    s.stepIdx = 1; s.picks[0] = this.p1;
+    s.cursor = [s.list.indexOf(this.p1), Math.max(0, s.list.indexOf(this.p2))];
+    go(s);
+  }
+  update() {
+    this.t++;
+    const n = this.options.length;
+    for (const a of Input.actions) {
+      if (a === 'left' || a === 'up') { this.cursor = (this.cursor - 1 + n) % n; Sound.play('select'); }
+      else if (a === 'right' || a === 'down') { this.cursor = (this.cursor + 1) % n; Sound.play('select'); }
+      else if (a === 'confirm') { this.confirm(); return; }
+      else if (a === 'back' || a === 'gpback') { this.back(); return; }
+    }
+    for (const p of Input.taps) {
+      if (UI.inside(p, this.backBtn)) { this.back(); return; }
+      if (UI.inside(p, this.okBtn)) { this.confirm(); return; }
+      for (let i = 0; i < this.cards.length; i++) {
+        if (UI.inside(p, this.cards[i])) {
+          if (this.cursor === i) { this.confirm(); return; }
+          this.cursor = i; Sound.play('select');
+        }
+      }
+    }
+  }
+  draw(c) {
+    const st = this.stage;
+    if (st) menuBackground(c, st, 0.35);
+    else {
+      // hasard : les arènes défilent en fond
+      menuBackground(c, STAGES[Math.floor(this.t / 40) % STAGES.length], 0.55);
+    }
+    UI.text(c, "CHOISIS L'ARÈNE", View.w / 2, 40, Math.min(44, View.w / 20), '#fff', 'center', { grad: true });
+    UI.button(c, this.backBtn, false, this.t);
+    UI.text(c, `${this.p1.name}  VS  ${this.p2.name}`, View.w / 2, 84, 20, '#ffe0b2');
+    this.cards.forEach((r, i) => {
+      const s = this.options[i], sel = i === this.cursor;
+      const grow = sel ? 1.08 + Math.sin(this.t * 0.15) * 0.015 : 1;
+      c.save();
+      c.translate(r.x + r.w / 2, r.y + r.h / 2); c.scale(grow, grow); c.translate(-r.w / 2, -r.h / 2);
+      roundRectPath(c, 0, 0, r.w, r.h, 10);
+      c.save(); c.clip();
+      if (s) Stage.drawThumb(c, s, View, canvas, 0, 0, r.w, r.h);
+      else {
+        const g = c.createLinearGradient(0, 0, 0, r.h);
+        g.addColorStop(0, '#5d1f12'); g.addColorStop(1, '#2a0c06');
+        c.fillStyle = g; c.fillRect(0, 0, r.w, r.h);
+        UI.text(c, '?', r.w / 2, r.h / 2, r.h * 0.6, '#ffb300');
+      }
+      c.restore();
+      roundRectPath(c, 0, 0, r.w, r.h, 10);
+      c.lineWidth = sel ? 4 : 2; c.strokeStyle = sel ? '#fff' : '#ff8a65'; c.stroke();
+      c.restore();
+      if (s && s.inferno) UI.text(c, 'BOSS', r.x + r.w - 26, r.y + 14, 13, '#ff7043', 'center', { sw: 3 });
+    });
+    const r = this.cards[this.cursor];
+    UI.text(c, st ? st.name : 'HASARD', View.w / 2, r.y + r.h + 40, Math.min(34, View.w / 26), '#fff', 'center', { grad: true });
+    const def = this.cards[this.options.findIndex((s) => s && s.id === 'autoroute')];
+    if (def) UI.text(c, 'PAR DÉFAUT', def.x + def.w / 2, def.y - 20, 14, '#ffcc80', 'center', { sw: 3 });
+    UI.button(c, this.okBtn, true, this.t);
   }
 }
 
@@ -544,10 +630,11 @@ const Flow = {
       ], 10));
     }
   },
-  startVersus(mode, p1, p2) {
-    const stage = choice(STAGES.filter((s) => !s.inferno || p1.boss || p2.boss));
+  // chosen : arène choisie, ou null pour le hasard
+  startVersus(mode, p1, p2, chosen) {
+    const stage = chosen || choice(STAGES.filter((s) => !s.inferno || p1.boss || p2.boss));
     const ai = mode === 'cpu' ? [null, new AI(Settings.data.difficulty + 0.2)] : [null, null];
-    const again = () => this.startVersus(mode, p1, p2);
+    const again = () => this.startVersus(mode, p1, p2, chosen);
     go(new VSScene(p1, p2, stage.name, () => go(new FightScene({
       p1, p2, mode, ai, stage,
       onEnd: (r) => {
@@ -607,6 +694,7 @@ resize();
 // Mode démo (ordi contre ordi) : index.html#demo=mett,boeuf,0
 if (/touch/.test(location.hash)) Input.forceTouch();
 if (/select/.test(location.hash)) go(new SelectScene('cpu'));
+if (/arena/.test(location.hash)) go(new ArenaSelectScene('cpu', ROSTER[0], ROSTER[1]));
 const demo = /^#demo(?:=([a-z]+),([a-z]+)(?:,(\d))?)?/.exec(location.hash || '');
 if (demo) {
   const p1 = rosterById(demo[1]) || choice(ROSTER), p2 = rosterById(demo[2]) || choice(ROSTER);

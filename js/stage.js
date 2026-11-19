@@ -440,5 +440,11 @@ const Stage = (() => {
     if (amb.length > 300) amb.splice(0, amb.length - 300);
   }
 
-  return { clearCache, drawBack, drawFloorFx, update };
+  // Vignette d'une arène (partie centrale 960x540 du décor statique)
+  function drawThumb(ctx, st, V, canvas, x, y, w, h) {
+    const c = getCanvas(st, V, canvas);
+    ctx.drawImage(c, V.ox * V.scale, V.oy * V.scale, ARENA_W * V.scale, ARENA_H * V.scale, x, y, w, h);
+  }
+
+  return { clearCache, drawBack, drawFloorFx, update, drawThumb };
 })();

@@ -1,5 +1,5 @@
 // Service worker : met tout le jeu en cache pour jouer hors ligne
-const CACHE = 'mettwurst-combat-v1.2.0';
+const CACHE = 'mettwurst-combat-v1.3.0';
 const ASSETS = [
   './',
   'index.html',
