@@ -35,6 +35,19 @@ En Versus ordi et en 2 joueurs, on choisit l'arène après les combattants. La B
 - **Versus ordi** : un combat libre contre l'ordinateur, avec 4 niveaux de difficulté.
 - **2 joueurs** : sur le même clavier, ou avec deux manettes.
 
+## Meilleurs scores
+
+En **Arcade**, chaque combat rapporte des points :
+
+- par round gagné : 1 000 + jusqu'à 2 000 selon la vie restante + 20 par seconde restante au chrono ;
+- **Cuisson parfaite** (round gagné sans perdre de vie) : +3 000 ;
+- combat gagné : +5 000, et +5 000 de plus pour une **Grillade finale** ;
+- boss vaincu : +20 000.
+
+Le total est multiplié selon la difficulté : ×1 en Facile, ×1,5 en Normal, ×2 en Difficile, ×2,5 en Infernal.
+
+En fin de partie (abandon, fin du compte à rebours ou victoire finale), si le score entre dans le top 10, on saisit ses **3 initiales** : ↑ ↓ pour changer la lettre, ← → pour changer de case, ou directement au clavier. **Continuer** après une défaite remet le score à zéro, après avoir proposé d'enregistrer le score obtenu. Le tableau se consulte depuis l'accueil, dans **MEILLEURS SCORES**. Il est enregistré sur l'appareil.
+
 ## Commandes
 
 | Action | Tactile | Clavier | Manette |

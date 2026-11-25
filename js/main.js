@@ -50,6 +50,7 @@ function goFullscreen() {
 Input.onFirstTouch = () => { if (!isStandalone()) goFullscreen(); };
 
 function go(s) {
+  if (scene && scene.leave) scene.leave();
   scene = s;
   if (s.layout) s.layout();
   if (s.enter) s.enter();
@@ -85,11 +86,12 @@ class TitleScene {
   layout() {
     const w = Math.min(330, View.w * 0.4), h = 50, x = View.w / 2 - w / 2;
     let y = View.h * 0.38;
-    const gap = Math.min(60, (View.h - y - 20) / 5);
+    const gap = Math.min(58, (View.h - y - 20) / 6);
     const items = [
       { label: 'ARCADE', action: () => go(new SelectScene('arcade')) },
       { label: 'VERSUS ORDI', action: () => go(new SelectScene('cpu')) },
       { label: '2 JOUEURS', action: () => go(new SelectScene('versus')) },
+      { label: 'MEILLEURS SCORES', action: () => go(new HighScoreScene()) },
       { label: 'COMMENT JOUER', action: () => go(new HowToScene()) },
       { label: 'OPTIONS', action: () => go(new OptionsScene()) },
     ].map((it) => { const b = Object.assign({ x, y, w, h: Math.min(h, gap - 8) }, it); y += gap; return b; });
@@ -398,7 +400,7 @@ class FightScene {
     this.pauseMenu = new UI.Menu([
       { x, y, w, h, label: 'REPRENDRE', action: () => this.closePause() },
       { x, y: y + 64, w, h, label: 'RECOMMENCER', action: () => go(new FightScene(Object.assign({}, this.cfg, { ai: this.cfg.ai && this.cfg.ai.map((a) => (a ? new AI(a.lv) : null)) }))) },
-      { x, y: y + 128, w, h, label: 'QUITTER', action: () => go(new TitleScene()) },
+      { x, y: y + 128, w, h, label: 'QUITTER', action: () => (this.cfg.mode === 'arcade' ? Flow.gameOver() : go(new TitleScene())) },
     ], { onBack: () => this.closePause() });
   }
   closePause() { this.pauseMenu = null; this.fight.paused = false; }
@@ -443,7 +445,7 @@ class ResultScene {
     this.t++; this.f.anim++;
     if (this.countdown && this.t % 60 === 0) {
       this.countdown--;
-      if (this.countdown <= 0) { go(new TitleScene()); return; }
+      if (this.countdown <= 0) { if (this.onTimeout) this.onTimeout(); else go(new TitleScene()); return; }
     }
     this.menu.update();
   }
@@ -459,20 +461,24 @@ class ResultScene {
     UI.text(c, this.title, View.w / 2, 56, Math.min(58, View.w / 16), '#fff', 'center', { grad: true });
     if (this.sub) UI.text(c, this.sub, View.w / 2, 104, 24, '#ffe0b2');
     if (this.countdown) UI.text(c, String(this.countdown), View.w / 2, 150, 48, '#ff7043');
+    if (this.info) drawScoreInfo(c, this.info, View.w * 0.17, View.h * 0.42);
     this.menu.draw(c, this.t);
   }
 }
 
 // ================================ FIN ARCADE ===============================
 class EndingScene {
-  constructor(def, unlocked) { this.def = def; this.unlocked = unlocked; this.t = 0; this.conf = []; }
+  constructor(def, unlocked, info, onDone) {
+    this.def = def; this.unlocked = unlocked; this.t = 0; this.conf = [];
+    this.info = info || null; this.onDone = onDone || (() => go(new TitleScene()));
+  }
   enter() {
     Sound.startMusic('menu');
     Sound.say(this.def.name.toLowerCase() + ', roi du barbecue !');
     this.f = makeDummy(this.def, 0, 0, 0); this.f.state = 'win';
   }
   layout() {
-    this.menu = new UI.Menu([{ x: View.w / 2 - 130, y: View.h - 76, w: 260, h: 52, label: 'MENU', action: () => go(new TitleScene()) }]);
+    this.menu = new UI.Menu([{ x: View.w / 2 - 130, y: View.h - 76, w: 260, h: 52, label: 'SUITE', action: () => this.onDone() }]);
   }
   update() {
     this.t++; this.f.anim++;
@@ -497,6 +503,197 @@ class EndingScene {
     UI.text(c, 'FÉLICITATIONS !', View.w / 2, 50, 54, '#fff', 'center', { grad: true });
     UI.text(c, this.def.name + ' EST LE ROI DU BARBECUE !', View.w / 2, 100, Math.min(28, View.w / 32), '#ffe0b2');
     if (this.unlocked) UI.text(c, 'NOUVEAU COMBATTANT DÉBLOQUÉ : MAÎTRE CHARBON !', View.w / 2, 140, 20, '#ff7043');
+    if (this.info) drawScoreInfo(c, this.info, View.w * 0.17, View.h * 0.45);
+    this.menu.draw(c, this.t);
+  }
+}
+
+// ================================ SCORES ===================================
+const fmtScore = (n) => String(Math.max(0, Math.round(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+// Panneau « points gagnés / score total » des écrans de résultat d'Arcade
+// info : { gained, total, detail: [] }
+function drawScoreInfo(c, info, x, y) {
+  const w = Math.min(250, View.w * 0.3), lines = info.detail || [];
+  const h = 96 + lines.length * 20 + (info.gained != null ? 30 : 0);
+  roundRectPath(c, x - w / 2, y - 30, w, h, 12);
+  c.fillStyle = 'rgba(20,8,4,0.7)'; c.fill();
+  c.lineWidth = 2; c.strokeStyle = '#ffab40'; c.stroke();
+  let yy = y - 8;
+  if (info.gained != null) { UI.text(c, '+' + fmtScore(info.gained) + ' PTS', x, yy, 22, '#ffd54f'); yy += 30; }
+  for (const d of lines) { UI.text(c, d, x, yy, 13, '#ffcc80', 'center', { sw: 3 }); yy += 20; }
+  UI.text(c, 'SCORE', x, yy + 4, 15, '#ffe0b2', 'center', { sw: 3 });
+  UI.text(c, fmtScore(info.total), x, yy + 34, 32, '#fff', 'center', { grad: true });
+}
+
+// ======================== SAISIE DES INITIALES =============================
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+class NameEntryScene {
+  // onDone(rang) : appelé une fois le score enregistré
+  constructor(score, def, onDone) {
+    this.score = score; this.def = def; this.onDone = onDone; this.t = 0;
+    const last = (Settings.data.initials || 'AAA').toUpperCase();
+    this.idx = [0, 1, 2].map((i) => Math.max(0, LETTERS.indexOf(last[i] || 'A')));
+    this.cursor = 0;
+    this.typed = [];
+    this.rank = HighScores.list.findIndex((e) => score > e.score);
+    if (this.rank < 0) this.rank = HighScores.list.length;
+  }
+  enter() {
+    Sound.startMusic('menu');
+    Sound.say('Nouveau record !');
+    this.f = makeDummy(this.def, 0, 0, 0); this.f.state = 'win';
+    // saisie directe au clavier physique
+    this.onKey = (e) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = (e.key || '').toUpperCase();
+      if (k.length === 1 && LETTERS.includes(k)) this.typed.push(k);
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+  leave() { window.removeEventListener('keydown', this.onKey); }
+  layout() {
+    const bw = Math.min(96, View.w * 0.1), bh = bw * 1.2, gap = bw * 0.35;
+    const total = 3 * bw + 2 * gap, x0 = View.w / 2 - total / 2, y = View.h * 0.42;
+    this.boxes = [0, 1, 2].map((i) => ({ x: x0 + i * (bw + gap), y, w: bw, h: bh }));
+    this.ups = this.boxes.map((b) => ({ x: b.x, y: b.y - 50, w: b.w, h: 42 }));
+    this.downs = this.boxes.map((b) => ({ x: b.x, y: b.y + b.h + 8, w: b.w, h: 42 }));
+    this.okBtn = { x: View.w / 2 - 120, y: View.h - 66, w: 240, h: 50, label: 'VALIDER' };
+  }
+  get name() { return this.idx.map((i) => LETTERS[i]).join(''); }
+  spin(slot, d) {
+    const n = LETTERS.length;
+    this.idx[slot] = (this.idx[slot] + d + n) % n;
+    Sound.play('select');
+  }
+  validate() {
+    if (this.saved) return;
+    this.saved = true;
+    Sound.play('confirm');
+    const name = this.name;
+    Settings.data.initials = name; Settings.save();
+    const rank = HighScores.add({
+      name, score: this.score, char: this.def.id, diff: Settings.data.difficulty, date: Date.now(),
+    });
+    this.onDone(rank);
+  }
+  update() {
+    this.t++; this.f.anim++;
+    if (this.typed.length) {
+      // une lettre tapée : on ignore les actions générées par la même touche (J, ZQSD…)
+      for (const k of this.typed) {
+        this.idx[this.cursor] = LETTERS.indexOf(k);
+        Sound.play('select');
+        if (this.cursor < 2) this.cursor++;
+      }
+      this.typed.length = 0;
+      return;
+    }
+    for (const a of Input.actions) {
+      if (a === 'up') this.spin(this.cursor, -1);
+      else if (a === 'down') this.spin(this.cursor, 1);
+      else if (a === 'left') { this.cursor = (this.cursor + 2) % 3; Sound.play('select'); }
+      else if (a === 'right') { this.cursor = (this.cursor + 1) % 3; Sound.play('select'); }
+      else if (a === 'confirm') {
+        if (this.cursor < 2) { this.cursor++; Sound.play('select'); } else { this.validate(); return; }
+      } else if (a === 'back' || a === 'gpback') { if (this.cursor > 0) { this.cursor--; Sound.play('back'); } }
+    }
+    for (const p of Input.taps) {
+      if (UI.inside(p, this.okBtn)) { this.validate(); return; }
+      for (let i = 0; i < 3; i++) {
+        if (UI.inside(p, this.ups[i])) { this.cursor = i; this.spin(i, -1); }
+        else if (UI.inside(p, this.downs[i])) { this.cursor = i; this.spin(i, 1); }
+        else if (UI.inside(p, this.boxes[i])) { this.cursor = i; Sound.play('select'); }
+      }
+    }
+  }
+  draw(c) {
+    menuBackground(c, STAGES[0], 0.55);
+    UI.text(c, 'NOUVEAU RECORD !', View.w / 2, 46, Math.min(56, View.w / 16), '#fff', 'center', { grad: true });
+    UI.text(c, `${this.rank + 1}${this.rank === 0 ? 'ER' : 'E'} PLACE  •  ${fmtScore(this.score)} POINTS`, View.w / 2, 96, 24, '#ffe0b2');
+    UI.text(c, 'ENTRE TES INITIALES', View.w / 2, this.ups[0].y - 26, 18, '#ffcc80', 'center', { sw: 3 });
+    // grilladin à gauche
+    const s = Math.min(1.1, View.h / 480), gy = View.h - 90, fx = View.w * 0.15;
+    c.save();
+    c.fillStyle = 'rgba(0,0,0,0.5)'; c.beginPath(); c.ellipse(fx, gy, 70 * s, 12 * s, 0, 0, Math.PI * 2); c.fill();
+    this.f.x = fx; this.f.y = gy;
+    c.translate(fx, gy); c.scale(s, s); c.translate(-fx, -gy);
+    drawFighter(c, this.f);
+    c.restore();
+    for (let i = 0; i < 3; i++) {
+      const b = this.boxes[i], sel = i === this.cursor;
+      roundRectPath(c, b.x, b.y, b.w, b.h, 12);
+      const g = c.createLinearGradient(0, b.y, 0, b.y + b.h);
+      g.addColorStop(0, sel ? '#ffb300' : '#5d1f12'); g.addColorStop(1, sel ? '#bf360c' : '#2a0c06');
+      c.fillStyle = g; c.fill();
+      c.lineWidth = sel ? 4 : 2; c.strokeStyle = sel ? '#fff' : '#ff8a65'; c.stroke();
+      const bob = sel ? Math.sin(this.t * 0.2) * 2 : 0;
+      UI.text(c, LETTERS[this.idx[i]], b.x + b.w / 2, b.y + b.h / 2 + 3 + bob, b.h * 0.7, '#fff', 'center', { grad: sel });
+      for (const [r, up] of [[this.ups[i], true], [this.downs[i], false]]) {
+        const cx = r.x + r.w / 2, cy = r.y + r.h / 2, k = 13;
+        c.fillStyle = sel ? '#ffca28' : 'rgba(255,224,178,0.6)';
+        c.beginPath();
+        if (up) { c.moveTo(cx, cy - k); c.lineTo(cx + k * 1.3, cy + k * 0.7); c.lineTo(cx - k * 1.3, cy + k * 0.7); }
+        else { c.moveTo(cx, cy + k); c.lineTo(cx + k * 1.3, cy - k * 0.7); c.lineTo(cx - k * 1.3, cy - k * 0.7); }
+        c.closePath(); c.fill();
+      }
+    }
+    c.globalAlpha = 0.7;
+    UI.text(c, '↑ ↓ changer la lettre   ← → changer de case   (ou tape au clavier)', View.w / 2, this.downs[0].y + 70, 14, '#ffe0b2', 'center', { sw: 3 });
+    c.globalAlpha = 1;
+    UI.button(c, this.okBtn, this.cursor === 2, this.t);
+  }
+}
+
+// ============================ MEILLEURS SCORES =============================
+class HighScoreScene {
+  constructor(highlight = -1, onBack) {
+    this.highlight = highlight; this.t = 0;
+    this.onBack = onBack || (() => go(new TitleScene()));
+  }
+  enter() { Sound.startMusic('menu'); }
+  layout() {
+    this.menu = new UI.Menu([{ x: View.w / 2 - 110, y: View.h - 60, w: 220, h: 46, label: 'RETOUR', action: () => this.onBack() }],
+      { onBack: () => this.onBack() });
+  }
+  update() { this.t++; this.menu.update(); }
+  draw(c) {
+    menuBackground(c, STAGES[1], 0.6);
+    UI.text(c, 'MEILLEURS SCORES', View.w / 2, 40, Math.min(48, View.w / 18), '#fff', 'center', { grad: true });
+    UI.text(c, 'MODE ARCADE', View.w / 2, 78, 16, '#ffcc80', 'center', { sw: 3 });
+    const list = HighScores.list;
+    const w = Math.min(720, View.w - 40), x = View.w / 2 - w / 2;
+    const top = 104, bottom = View.h - 74, rowH = Math.min(36, (bottom - top - 28) / HighScores.MAX);
+    const fs = Math.max(13, Math.min(22, rowH * 0.6));
+    const col = { rank: x + w * 0.07, name: x + w * 0.2, score: x + w * 0.5, char: x + w * 0.68, diff: x + w * 0.96 };
+    UI.text(c, 'RANG', col.rank, top + 10, 13, '#ffb300', 'center', { sw: 3 });
+    UI.text(c, 'NOM', col.name, top + 10, 13, '#ffb300', 'center', { sw: 3 });
+    UI.text(c, 'SCORE', col.score, top + 10, 13, '#ffb300', 'right', { sw: 3 });
+    UI.text(c, 'GRILLADIN', col.char, top + 10, 13, '#ffb300', 'left', { sw: 3 });
+    UI.text(c, 'DIFFICULTÉ', col.diff, top + 10, 13, '#ffb300', 'right', { sw: 3 });
+    const medal = ['#ffd54f', '#e0e0e0', '#ff8a65'];
+    for (let i = 0; i < HighScores.MAX; i++) {
+      const e = list[i], y = top + 28 + i * rowH + rowH / 2, hl = i === this.highlight;
+      roundRectPath(c, x, y - rowH / 2 + 2, w, rowH - 4, 8);
+      c.fillStyle = hl ? `rgba(255,179,0,${0.35 + Math.sin(this.t * 0.15) * 0.15})` : i % 2 ? 'rgba(20,8,4,0.45)' : 'rgba(60,20,10,0.5)';
+      c.fill();
+      if (hl) { c.lineWidth = 2; c.strokeStyle = '#fff3c4'; c.stroke(); }
+      const color = i < 3 ? medal[i] : '#fff3e0';
+      UI.text(c, String(i + 1), col.rank, y, fs, color, 'center', { sw: 3 });
+      if (!e) {
+        c.globalAlpha = 0.35;
+        UI.text(c, '- - -', col.name, y, fs, '#fff', 'center', { sw: 3 });
+        UI.text(c, '0', col.score, y, fs, '#fff', 'right', { sw: 3 });
+        c.globalAlpha = 1;
+        continue;
+      }
+      const def = rosterById(e.char);
+      UI.text(c, e.name, col.name, y, fs + 2, hl ? '#fff' : color, 'center', { sw: 3 });
+      UI.text(c, fmtScore(e.score), col.score, y, fs, '#fff', 'right', { sw: 3 });
+      UI.text(c, def ? def.name : '?', col.char, y, fs * 0.8, '#ffe0b2', 'left', { sw: 3 });
+      UI.text(c, DIFFICULTIES[e.diff] || '', col.diff, y, fs * 0.7, '#ffcc80', 'right', { sw: 3 });
+    }
+    if (!list.length) UI.text(c, 'AUCUN SCORE : FINIS UNE PARTIE D\'ARCADE !', View.w / 2, top + 28 + rowH * 5, 20, '#ffcc80');
     this.menu.draw(c, this.t);
   }
 }
@@ -592,8 +789,18 @@ const Flow = {
   startArcade(p1) {
     const ladder = shuffle(ROSTER.filter((c) => !c.boss && c.id !== p1.id));
     if (p1.id !== 'charbon') ladder.push(rosterById('charbon'));
-    this.arcade = { p1, ladder, idx: 0 };
+    this.arcade = { p1, ladder, idx: 0, score: 0 };
     this.nextArcade();
+  },
+  // Fin de partie d'Arcade : saisie des initiales si le score entre au tableau.
+  // next(rang) : la suite ; par défaut, le tableau des scores.
+  gameOver(next) {
+    const a = this.arcade;
+    const score = a ? a.score : 0;
+    if (a) a.score = 0;
+    const done = next || ((rank) => go(rank >= 0 ? new HighScoreScene(rank) : new TitleScene()));
+    if (a && HighScores.qualifies(score)) go(new NameEntryScene(score, a.p1, done));
+    else done(-1);
   },
   nextArcade() {
     const a = this.arcade, opp = a.ladder[a.idx];
@@ -601,7 +808,8 @@ const Flow = {
     const normal = STAGES.filter((s) => !s.inferno).sort((a, b) => (b.id === 'autoroute') - (a.id === 'autoroute'));
     const stage = opp.boss ? STAGES.find((s) => s.inferno) : normal[a.idx % normal.length];
     const lvl = Settings.data.difficulty + (a.idx / Math.max(1, a.ladder.length - 1)) * 0.8 + (opp.boss ? 0.3 : 0);
-    const sub = opp.boss ? 'COMBAT FINAL  •  ' + stage.name : `COMBAT ${a.idx + 1} / ${a.ladder.length}  •  ${stage.name}`;
+    const sub = (opp.boss ? 'COMBAT FINAL  •  ' + stage.name : `COMBAT ${a.idx + 1} / ${a.ladder.length}  •  ${stage.name}`)
+      + '  •  SCORE ' + fmtScore(a.score);
     const startFight = () => go(new FightScene({
       p1: a.p1, p2: opp, mode: 'arcade', ai: [null, new AI(lvl)], stage,
       onEnd: (r) => this.arcadeResult(r),
@@ -610,6 +818,10 @@ const Flow = {
   },
   arcadeResult(r) {
     const a = this.arcade;
+    const opp = a.ladder[a.idx];
+    const sc = fightScore(r, opp, Settings.data.difficulty);
+    a.score += sc.points;
+    const info = { gained: sc.points, total: a.score, detail: sc.detail };
     if (r.winner === 0) {
       a.idx++;
       if (a.idx >= a.ladder.length) {
@@ -617,18 +829,25 @@ const Flow = {
         Settings.data.bossUnlocked = true;
         Settings.data.wins++;
         Settings.save();
-        go(new EndingScene(a.p1, unlocked));
+        go(new EndingScene(a.p1, unlocked, info, () => this.gameOver()));
         return;
       }
-      go(new ResultScene(a.p1, 'VICTOIRE !', `${a.ladder[a.idx - 1].name} EST CUIT À POINT`, [
+      const res = new ResultScene(a.p1, 'VICTOIRE !', `${opp.name} EST CUIT À POINT`, [
         { label: 'COMBAT SUIVANT', action: () => this.nextArcade() },
-        { label: 'MENU', action: () => go(new TitleScene()) },
-      ]));
+        { label: 'ABANDONNER', action: () => this.gameOver() },
+      ]);
+      res.info = info;
+      go(res);
     } else {
-      go(new ResultScene(a.p1, 'DÉFAITE…', 'TU AS ÉTÉ GRILLÉ ! CONTINUER ?', [
-        { label: 'CONTINUER', action: () => this.nextArcade() },
-        { label: 'MENU', action: () => go(new TitleScene()) },
-      ], 10));
+      // continuer remet le score à zéro (après l'avoir enregistré s'il le mérite)
+      const res = new ResultScene(a.p1, 'DÉFAITE…', 'TU AS ÉTÉ GRILLÉ ! CONTINUER ?', [
+        { label: 'CONTINUER', action: () => this.gameOver(() => this.nextArcade()) },
+        { label: 'MENU', action: () => this.gameOver() },
+      ], 10);
+      res.info = info;
+      info.detail = info.detail.concat(['CONTINUER REMET LE SCORE À 0']);
+      res.onTimeout = () => this.gameOver();
+      go(res);
     }
   },
   // chosen : arène choisie, ou null pour le hasard
@@ -696,6 +915,8 @@ resize();
 if (/touch/.test(location.hash)) Input.forceTouch();
 if (/select/.test(location.hash)) go(new SelectScene('cpu'));
 if (/arena/.test(location.hash)) go(new ArenaSelectScene('cpu', ROSTER[0], ROSTER[1]));
+if (/scores/.test(location.hash)) go(new HighScoreScene());
+if (/initiales/.test(location.hash)) go(new NameEntryScene(123450, ROSTER[0], (r) => go(new HighScoreScene(r))));
 const demo = /^#demo(?:=([a-z]+),([a-z]+)(?:,(\d))?)?/.exec(location.hash || '');
 if (demo) {
   const p1 = rosterById(demo[1]) || choice(ROSTER), p2 = rosterById(demo[2]) || choice(ROSTER);

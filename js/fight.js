@@ -15,6 +15,7 @@ class Fight {
     this.banner = null; this.combo = [null, null]; this.freeze = null;
     this.paused = false; this.done = false;
     this.finisherPending = false; this.roundWinner = null; this.result = null;
+    this.stats = { rounds: [], grilled: false }; // pour le calcul du score
     this.startRound();
   }
 
@@ -84,6 +85,10 @@ class Fight {
   endRound() {
     const w = this.roundWinner;
     if (w) w.wins++;
+    this.stats.rounds.push({
+      winner: w ? w.side : null, hp: w ? Math.max(0, w.hp) / w.maxHp : 0,
+      timer: Math.max(0, this.timer), perfect: !!w && w.hp >= w.maxHp,
+    });
     if (this.finisherPending && w) {
       this.phase = 'finisher'; this.pt = 0;
       this.showBanner('GRILLE-LE !', '↓ + SPÉCIAL', 320, true);
@@ -105,7 +110,7 @@ class Fight {
     this.phase = 'matchEnd'; this.pt = 0;
     const wi = this.matchWinner();
     this.roundWinner = this.f[wi];
-    this.result = { winner: wi };
+    this.result = { winner: wi, stats: this.stats };
     if (!this.banner || this.banner.text !== 'BIEN CUIT !') {
       this.showBanner(this.f[wi].def.name, 'REMPORTE LE COMBAT !', 170);
       Sound.say(this.f[wi].def.name.toLowerCase() + ' remporte le combat');
@@ -116,6 +121,7 @@ class Fight {
     if (this.phase !== 'finisher' || f !== this.roundWinner) return;
     this.phase = 'finisherAnim'; this.pt = 0;
     this.finisherPending = false;
+    this.stats.grilled = true;
     f.state = 'cast'; f.vx = 0;
     this.showBanner('GRILLADE FINALE !', null, 90, true);
     Sound.play('super');

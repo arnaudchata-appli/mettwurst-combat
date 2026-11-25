@@ -8,7 +8,7 @@ const GROUND = 468;
 const STEP = 1 / 60;
 const GRAVITY = 2600;
 const FREE = new Set(['idle', 'walk', 'crouch', 'block']);
-const VERSION = '1.3.1';
+const VERSION = '1.4.0';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -57,3 +57,52 @@ const Settings = {
   },
 };
 Settings.load();
+
+// Meilleurs scores du mode Arcade (10 entrées, initiales sur 3 lettres)
+const HighScores = {
+  KEY: 'mettwurst-combat-scores',
+  MAX: 10,
+  list: [],
+  load() {
+    try {
+      const l = JSON.parse(localStorage.getItem(this.KEY) || '[]');
+      this.list = Array.isArray(l) ? l.filter((e) => e && typeof e.score === 'number').slice(0, this.MAX) : [];
+    } catch (e) { this.list = []; }
+  },
+  save() {
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.list)); } catch (e) { /* ignore */ }
+  },
+  // vrai si ce score entre dans le tableau
+  qualifies(score) {
+    return score > 0 && (this.list.length < this.MAX || score > this.list[this.list.length - 1].score);
+  },
+  // ajoute une entrée et renvoie son rang (0 = premier)
+  add(entry) {
+    let i = this.list.findIndex((e) => entry.score > e.score);
+    if (i < 0) i = this.list.length;
+    this.list.splice(i, 0, entry);
+    this.list.length = Math.min(this.list.length, this.MAX);
+    this.save();
+    return i < this.MAX ? i : -1;
+  },
+};
+HighScores.load();
+
+// Points gagnés par le joueur 1 sur un combat d'Arcade
+function fightScore(result, opp, difficulty) {
+  const st = result.stats || { rounds: [] };
+  let pts = 0;
+  const detail = [];
+  for (const r of st.rounds) {
+    if (r.winner !== 0) continue;
+    pts += 1000 + Math.round(r.hp * 2000) + r.timer * 20;
+    if (r.perfect) { pts += 3000; detail.push('CUISSON PARFAITE'); }
+  }
+  if (result.winner === 0) {
+    pts += 5000;
+    if (st.grilled) { pts += 5000; detail.push('GRILLADE FINALE'); }
+    if (opp.boss) { pts += 20000; detail.push('BOSS VAINCU'); }
+  }
+  const mult = 1 + difficulty * 0.5;
+  return { points: Math.round(pts * mult / 10) * 10, detail, mult };
+}
