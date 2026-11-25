@@ -91,7 +91,7 @@ class TitleScene {
       { label: 'ARCADE', action: () => go(new SelectScene('arcade')) },
       { label: 'VERSUS ORDI', action: () => go(new SelectScene('cpu')) },
       { label: '2 JOUEURS', action: () => go(new SelectScene('versus')) },
-      { label: 'MEILLEURS SCORES', action: () => go(new HighScoreScene()) },
+      { label: 'CLASSEMENT INTERGA-LACTIQUE', size: 20, action: () => go(new HighScoreScene()) },
       { label: 'COMMENT JOUER', action: () => go(new HowToScene()) },
       { label: 'OPTIONS', action: () => go(new OptionsScene()) },
     ].map((it) => { const b = Object.assign({ x, y, w, h: Math.min(h, gap - 8) }, it); y += gap; return b; });
@@ -536,8 +536,7 @@ class NameEntryScene {
     this.idx = [0, 1, 2].map((i) => Math.max(0, LETTERS.indexOf(last[i] || 'A')));
     this.cursor = 0;
     this.typed = [];
-    this.rank = HighScores.list.findIndex((e) => score > e.score);
-    if (this.rank < 0) this.rank = HighScores.list.length;
+    this.rank = HighScores.rankOf(score);
   }
   enter() {
     Sound.startMusic('menu');
@@ -645,13 +644,14 @@ class NameEntryScene {
   }
 }
 
-// ============================ MEILLEURS SCORES =============================
+// ========================== CLASSEMENT INTERGA-LACTIQUE ==========================
 class HighScoreScene {
-  constructor(highlight = -1, onBack) {
-    this.highlight = highlight; this.t = 0;
+  // highlight : vrai pour faire clignoter le score qui vient d'être saisi
+  constructor(highlight = false, onBack) {
+    this.highlight = !!highlight; this.t = 0;
     this.onBack = onBack || (() => go(new TitleScene()));
   }
-  enter() { Sound.startMusic('menu'); }
+  enter() { Sound.startMusic('menu'); HighScores.refresh(); }
   layout() {
     this.menu = new UI.Menu([{ x: View.w / 2 - 110, y: View.h - 60, w: 220, h: 46, label: 'RETOUR', action: () => this.onBack() }],
       { onBack: () => this.onBack() });
@@ -659,9 +659,14 @@ class HighScoreScene {
   update() { this.t++; this.menu.update(); }
   draw(c) {
     menuBackground(c, STAGES[1], 0.6);
-    UI.text(c, 'MEILLEURS SCORES', View.w / 2, 40, Math.min(48, View.w / 18), '#fff', 'center', { grad: true });
-    UI.text(c, 'MODE ARCADE', View.w / 2, 78, 16, '#ffcc80', 'center', { sw: 3 });
-    const list = HighScores.list;
+    UI.text(c, 'CLASSEMENT INTERGA-LACTIQUE', View.w / 2, 40, Math.min(44, View.w / 22), '#fff', 'center', { grad: true });
+    const H = HighScores;
+    const sub = H.isGlobal ? 'MODE ARCADE  •  TOUS LES JOUEURS DE LA GALAXIE'
+      : H.online && H.status === 'loading' ? 'CONNEXION À LA GALAXIE…'
+        : H.online ? 'HORS LIGNE  •  SCORES DE CET APPAREIL' : 'MODE ARCADE  •  SCORES DE CET APPAREIL';
+    UI.text(c, sub, View.w / 2, 78, 16, H.online && !H.isGlobal ? '#ff8a65' : '#ffcc80', 'center', { sw: 3 });
+    const list = H.best;
+    const hlIdx = this.highlight ? list.findIndex((e) => H.same(e, H.lastEntry)) : -1;
     const w = Math.min(720, View.w - 40), x = View.w / 2 - w / 2;
     const top = 104, bottom = View.h - 74, rowH = Math.min(36, (bottom - top - 28) / HighScores.MAX);
     const fs = Math.max(13, Math.min(22, rowH * 0.6));
@@ -673,7 +678,7 @@ class HighScoreScene {
     UI.text(c, 'DIFFICULTÉ', col.diff, top + 10, 13, '#ffb300', 'right', { sw: 3 });
     const medal = ['#ffd54f', '#e0e0e0', '#ff8a65'];
     for (let i = 0; i < HighScores.MAX; i++) {
-      const e = list[i], y = top + 28 + i * rowH + rowH / 2, hl = i === this.highlight;
+      const e = list[i], y = top + 28 + i * rowH + rowH / 2, hl = i === hlIdx;
       roundRectPath(c, x, y - rowH / 2 + 2, w, rowH - 4, 8);
       c.fillStyle = hl ? `rgba(255,179,0,${0.35 + Math.sin(this.t * 0.15) * 0.15})` : i % 2 ? 'rgba(20,8,4,0.45)' : 'rgba(60,20,10,0.5)';
       c.fill();
@@ -790,6 +795,7 @@ const Flow = {
     const ladder = shuffle(ROSTER.filter((c) => !c.boss && c.id !== p1.id));
     if (p1.id !== 'charbon') ladder.push(rosterById('charbon'));
     this.arcade = { p1, ladder, idx: 0, score: 0 };
+    HighScores.refresh(); // pour savoir, en fin de partie, si le score entre au classement
     this.nextArcade();
   },
   // Fin de partie d'Arcade : saisie des initiales si le score entre au tableau.
@@ -798,7 +804,7 @@ const Flow = {
     const a = this.arcade;
     const score = a ? a.score : 0;
     if (a) a.score = 0;
-    const done = next || ((rank) => go(rank >= 0 ? new HighScoreScene(rank) : new TitleScene()));
+    const done = next || ((rank) => go(rank >= 0 ? new HighScoreScene(true) : new TitleScene()));
     if (a && HighScores.qualifies(score)) go(new NameEntryScene(score, a.p1, done));
     else done(-1);
   },
@@ -916,7 +922,7 @@ if (/touch/.test(location.hash)) Input.forceTouch();
 if (/select/.test(location.hash)) go(new SelectScene('cpu'));
 if (/arena/.test(location.hash)) go(new ArenaSelectScene('cpu', ROSTER[0], ROSTER[1]));
 if (/scores/.test(location.hash)) go(new HighScoreScene());
-if (/initiales/.test(location.hash)) go(new NameEntryScene(123450, ROSTER[0], (r) => go(new HighScoreScene(r))));
+if (/initiales/.test(location.hash)) go(new NameEntryScene(123450, ROSTER[0], (r) => go(new HighScoreScene(r >= 0))));
 const demo = /^#demo(?:=([a-z]+),([a-z]+)(?:,(\d))?)?/.exec(location.hash || '');
 if (demo) {
   const p1 = rosterById(demo[1]) || choice(ROSTER), p2 = rosterById(demo[2]) || choice(ROSTER);

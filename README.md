@@ -35,7 +35,7 @@ En Versus ordi et en 2 joueurs, on choisit l'arène après les combattants. La B
 - **Versus ordi** : un combat libre contre l'ordinateur, avec 4 niveaux de difficulté.
 - **2 joueurs** : sur le même clavier, ou avec deux manettes.
 
-## Meilleurs scores
+## Classement interga-lactique
 
 En **Arcade**, chaque combat rapporte des points :
 
@@ -46,7 +46,19 @@ En **Arcade**, chaque combat rapporte des points :
 
 Le total est multiplié selon la difficulté : ×1 en Facile, ×1,5 en Normal, ×2 en Difficile, ×2,5 en Infernal.
 
-En fin de partie (abandon, fin du compte à rebours ou victoire finale), si le score entre dans le top 10, on saisit ses **3 initiales** : ↑ ↓ pour changer la lettre, ← → pour changer de case, ou directement au clavier. **Continuer** après une défaite remet le score à zéro, après avoir proposé d'enregistrer le score obtenu. Le tableau se consulte depuis l'accueil, dans **MEILLEURS SCORES**. Il est enregistré sur l'appareil.
+En fin de partie (abandon, fin du compte à rebours ou victoire finale), si le score entre dans le top 8, on saisit ses **3 initiales** : ↑ ↓ pour changer la lettre, ← → pour changer de case, ou directement au clavier. **Continuer** après une défaite remet le score à zéro, après avoir proposé d'enregistrer le score obtenu. Le tableau se consulte depuis l'accueil, dans **CLASSEMENT INTERGA-LACTIQUE**.
+
+Le classement est **partagé en ligne** entre tous les joueurs, grâce à [Supabase](https://supabase.com/). Sans connexion, le jeu affiche les scores de l'appareil et garde les nouveaux scores en attente : il les envoie dès que le réseau revient.
+
+### Mettre en place le classement en ligne
+
+1. Crée un compte et un projet gratuit sur [supabase.com](https://supabase.com/).
+2. Dans **SQL Editor**, colle le contenu de [`supabase.sql`](supabase.sql) et lance-le. Cela crée la table `scores` avec ses règles : 3 lettres, score plausible, ajout seulement. Personne ne peut modifier ni effacer les scores.
+3. Dans **Project Settings → API**, copie l'**URL du projet** et la **clé publishable** (ou `anon`). Colle-les dans `ONLINE` en haut de la section Classement de `js/util.js`. Cette clé est faite pour être publique.
+
+Tant que `ONLINE` est vide, le classement reste local à l'appareil.
+
+Comme pour tout jeu qui tourne dans le navigateur, un tricheur motivé peut envoyer un faux score. Les règles de la base limitent seulement les valeurs possibles. Pour effacer un score, utilise **Table Editor** dans Supabase.
 
 ## Commandes
 
